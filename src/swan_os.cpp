@@ -7,6 +7,7 @@
 #include "InputHandler.h"
 #include "SoundFX.h"
 #include "Storage.h"
+#include "Sniffer.h"
 
 // Create the global OLED display instance
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
@@ -48,9 +49,30 @@ void setup() {
 }
 
 void loop() {
-  // Update input handling (rotary encoder, serial, button)
   InputHandler::update();
-  
+
+  // Sniffer state management
+  static DisplayUI::MenuState lastState = DisplayUI::MAIN_MENU;
+
+  if (DisplayUI::menuState != lastState) {
+    switch (DisplayUI::menuState) {
+      case DisplayUI::SNIFF_PACKET:
+        Sniffer::begin();
+        break;
+
+      case DisplayUI::MAIN_MENU:
+      case DisplayUI::SUB_MENU:
+      case DisplayUI::BUZZER_MENU:
+      case DisplayUI::SNIFF_MENU:
+      case DisplayUI::SNIFF_AP:
+      case DisplayUI::SILENT_MODE:
+      case DisplayUI::INFO_MODE:
+        Sniffer::stop();
+        break;
+    }
+    lastState = DisplayUI::menuState;
+  }
+
   // Simulate battery level and update RGB LED status (for demonstration)
   if (millis() - lastUpdate > 100) {
     lastUpdate = millis();
@@ -69,7 +91,7 @@ void loop() {
       analogWrite(GREEN_LED, 0);
     }
   }
-  
+
   // Update the OLED display with the current UI state
   DisplayUI::update(display);
 }

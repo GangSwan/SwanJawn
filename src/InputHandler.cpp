@@ -1,4 +1,6 @@
 #include "InputHandler.h"
+#include "Sniffer.h"
+#include "FileBrowser.h"  // Include the file browser header
 
 // Create a rotary encoder instance locally
 RotaryEncoder encoder(ENCODER_CLK, ENCODER_DT, RotaryEncoder::LatchMode::TWO03);
@@ -19,175 +21,293 @@ namespace InputHandler {
     }
     int newPos = encoder.getPosition();
     
-    // Update selection indices based on the current menu state:
-    if (DisplayUI::menuState == MAIN_MENU) {
-      if (newPos != lastPos) {
-        DisplayUI::mainSelection = abs(newPos) % 4; // 4 items in mainMenu
-        lastPos = newPos;
-      }
-    }
-    else if (DisplayUI::menuState == SUB_MENU || DisplayUI::menuState == BUZZER_MENU) {
-      if (newPos != lastPos) {
-        // Both SUB_MENU and BUZZER_MENU have 2 items
-        DisplayUI::subSelection = abs(newPos) % 2;
-        lastPos = newPos;
-      }
-    }
-    else if (DisplayUI::menuState == SNIFF_MENU) {
-      if (newPos != lastPos) {
-        // SNIFF_MENU has 3 items: Packet Sniffing, Access Points, Back
-        DisplayUI::sniffSelection = abs(newPos) % 3;
-        lastPos = newPos;
-      }
-    }
-    
-    // Process serial inputs for navigation:
-    if (Serial.available()) {
-      char input = Serial.read();
-      
-      // MAIN MENU input
-      if (DisplayUI::menuState == MAIN_MENU) {
-        if (input == 'w')
-          DisplayUI::mainSelection = (DisplayUI::mainSelection - 1 + 4) % 4;
-        if (input == 's')
-          DisplayUI::mainSelection = (DisplayUI::mainSelection + 1) % 4;
-        if (input == 'e') {
-          if (DisplayUI::mainSelection == 0) { // Sniffing
-            DisplayUI::menuState = SNIFF_MENU;
-            DisplayUI::sniffSelection = 0;
-            encoder.setPosition(0);
-            Serial.println("Entering Sniffing menu...");
-          }
-          else if (DisplayUI::mainSelection == 3) { // Buzzer Songs
-            DisplayUI::menuState = BUZZER_MENU;
-            DisplayUI::subSelection = 0;
-            encoder.setPosition(0);
-            Serial.println("Entering Buzzer Songs menu...");
-          }
-          else { // Info Mode or Silent Mode
-            DisplayUI::menuState = SUB_MENU;
-            DisplayUI::subSelection = 0;
-            encoder.setPosition(0);
-            Serial.println("Entering submenu...");
-          }
+    // --- Process rotary encoder changes ---
+    switch (DisplayUI::menuState) {
+      case DisplayUI::MAIN_MENU:
+        if (newPos != lastPos) {
+          // MAIN_MENU now has 5 items (the last one being "File Browser")
+          DisplayUI::mainSelection = abs(newPos) % 5;
+          lastPos = newPos;
         }
-      }
-      // BUZZER_MENU or SUB_MENU input
-      else if (DisplayUI::menuState == BUZZER_MENU || DisplayUI::menuState == SUB_MENU) {
-        if (input == 'w')
-          DisplayUI::subSelection = (DisplayUI::subSelection - 1 + 2) % 2;
-        if (input == 's')
-          DisplayUI::subSelection = (DisplayUI::subSelection + 1) % 2;
-        if (input == 'e') {
-          // "Back" is index 1
-          if (DisplayUI::subSelection == 1) {
-            DisplayUI::menuState = MAIN_MENU;
-            encoder.setPosition(DisplayUI::mainSelection);
-            Serial.println("Returning to Main Menu...");
+        break;
+      case DisplayUI::SUB_MENU:
+      case DisplayUI::BUZZER_MENU:
+        if (newPos != lastPos) {
+          // Both SUB_MENU and BUZZER_MENU have 2 items
+          DisplayUI::subSelection = abs(newPos) % 2;
+          lastPos = newPos;
+        }
+        break;
+      case DisplayUI::SNIFF_MENU:
+        if (newPos != lastPos) {
+          // SNIFF_MENU has 3 items: Packet Sniffing, Access Points, Back
+          DisplayUI::sniffSelection = abs(newPos) % 3;
+          lastPos = newPos;
+        }
+        break;
+      case DisplayUI::FILE_BROWSER:
+        switch (FileBrowser::browserState) {
+          case FileBrowser::FILE_LIST:
+            if (newPos != lastPos) {
+              if (newPos > lastPos)
+                FileBrowser::nextFile();
+              else
+                FileBrowser::previousFile();
+              lastPos = newPos;
+            }
+            break;
+          case FileBrowser::FILE_VIEW:
+            if (newPos != lastPos) {
+              if (newPos > lastPos)
+                FileBrowser::nextPage();
+              else
+                FileBrowser::previousPage();
+              lastPos = newPos;
+            }
+            break;
+          default:
+            break;
+        }
+        break;
+      default:
+        break;
+    } // End rotary encoder switch
+
+// --- Process Serial Inputs ---
+if (Serial.available()) {
+  char input = Serial.read();
+  switch (DisplayUI::menuState) {
+    case DisplayUI::MAIN_MENU:
+      switch (input) {
+        case 'w':
+          DisplayUI::mainSelection = (DisplayUI::mainSelection - 1 + 5) % 5;
+          break;
+        case 's':
+          DisplayUI::mainSelection = (DisplayUI::mainSelection + 1) % 5;
+          break;
+        case 'e':
+          switch (DisplayUI::mainSelection) {
+            case 0: // Sniffing
+              DisplayUI::menuState = DisplayUI::SNIFF_MENU;
+              DisplayUI::sniffSelection = 0;
+              encoder.setPosition(0);
+              Serial.println("Entering Sniffing menu...");
+              break;
+            case 3: // Buzzer Songs
+              DisplayUI::menuState = DisplayUI::BUZZER_MENU;
+              DisplayUI::subSelection = 0;
+              encoder.setPosition(0);
+              Serial.println("Entering Buzzer Songs menu...");
+              break;
+            case 4: // File Browser
+              DisplayUI::menuState = DisplayUI::FILE_BROWSER;
+              FileBrowser::initFileBrowser();
+              encoder.setPosition(0);
+              Serial.println("Entering File Browser...");
+              break;
+            default: // Info Mode or Silent Mode (handled in SUB_MENU)
+              DisplayUI::menuState = DisplayUI::SUB_MENU;
+              DisplayUI::subSelection = 0;
+              encoder.setPosition(0);
+              Serial.println("Entering submenu...");
+              break;
           }
-          else {
-            // In BUZZER_MENU, index 0 plays Giorno's Theme; in SUB_MENU, nothing is done (placeholder)
-            if (DisplayUI::menuState == BUZZER_MENU && DisplayUI::subSelection == 0) {
+          break;
+        default:
+          break;
+      }
+      break;
+    case DisplayUI::BUZZER_MENU:
+    case DisplayUI::SUB_MENU:
+      switch (input) {
+        case 'w':
+          DisplayUI::subSelection = (DisplayUI::subSelection - 1 + 2) % 2;
+          break;
+        case 's':
+          DisplayUI::subSelection = (DisplayUI::subSelection + 1) % 2;
+          break;
+        case 'e':
+          if (DisplayUI::subSelection == 1) {
+            DisplayUI::menuState = DisplayUI::MAIN_MENU;
+            DisplayUI::mainSelection = 0;  // reset to default
+            encoder.setPosition(0);
+            Serial.println("Returning to Main Menu...");
+          } else {
+            if (DisplayUI::menuState == DisplayUI::BUZZER_MENU) {
               Serial.println("Playing Giorno’s Theme...");
               SoundFX::playGiornosTheme();
             } else {
               Serial.println("Selected 'Do nothing'");
             }
           }
-        }
+          break;
+        default:
+          break;
       }
-      // SNIFF_MENU input
-      else if (DisplayUI::menuState == SNIFF_MENU) {
-        if (input == 'w')
+      break;
+      
+    case DisplayUI::SNIFF_MENU:
+      switch (input) {
+        case 'w':
           DisplayUI::sniffSelection = (DisplayUI::sniffSelection - 1 + 3) % 3;
-        if (input == 's')
+          break;
+        case 's':
           DisplayUI::sniffSelection = (DisplayUI::sniffSelection + 1) % 3;
-        if (input == 'e') {
-          if (DisplayUI::sniffSelection == 0) {  // Packet Sniffing
-            DisplayUI::menuState = SNIFF_PACKET;
-            Serial.println("Entering Packet Sniffing mode...");
+          break;
+        case 'e':
+          switch (DisplayUI::sniffSelection) {
+            case 0:
+              DisplayUI::menuState = DisplayUI::SNIFF_PACKET;
+              Serial.println("Entering Packet Sniffing mode...");
+              break;
+            case 1:
+              DisplayUI::menuState = DisplayUI::SNIFF_AP;
+              Serial.println("Entering Access Points mode...");
+              break;
+            case 2:
+              DisplayUI::menuState = DisplayUI::MAIN_MENU;
+              DisplayUI::mainSelection = 0;
+              Serial.println("Returning to Main Menu...");
+              break;
+            default:
+              break;
           }
-          else if (DisplayUI::sniffSelection == 1) {  // Access Points
-            DisplayUI::menuState = SNIFF_AP;
-            Serial.println("Entering Access Points mode...");
-          }
-          else if (DisplayUI::sniffSelection == 2) {  // Back
-            DisplayUI::menuState = MAIN_MENU;
-            Serial.println("Returning to Main Menu...");
-          }
+          break;
+        default:
+          break;
+      }
+      break;
+      
+    case DisplayUI::SNIFF_PACKET:
+    case DisplayUI::SNIFF_AP:
+      if (input == 'e') {
+        DisplayUI::menuState = DisplayUI::SNIFF_MENU;
+        DisplayUI::sniffSelection = 0;
+        encoder.setPosition(0);
+        Serial.println("Exiting to Sniffing menu...");
+      }
+      break;
+      
+    case DisplayUI::FILE_BROWSER:
+      if (input == 'e') {
+        if (FileBrowser::selectedFileIndex == FileBrowser::fileCount) {
+          // "Back" option selected – exit file browser
+          DisplayUI::menuState = DisplayUI::MAIN_MENU;
+          DisplayUI::mainSelection = 0;  // Reset main menu selection
+          encoder.setPosition(0);
+          Serial.println("Exiting File Browser...");
+        } else {
+          FileBrowser::openSelectedFile();
+          Serial.println("Opening file...");
         }
       }
-      // In SNIFF_PACKET or SNIFF_AP, only a "Back" option is available:
-      else if (DisplayUI::menuState == SNIFF_PACKET || DisplayUI::menuState == SNIFF_AP) {
-        if (input == 'e') {
-          DisplayUI::menuState = SNIFF_MENU;
+      break;
+    default:
+      break;
+  }
+} // End serial input processing
+
+// --- Process Physical Button (mimicking the 'e' key) ---
+bool isPressed = digitalRead(ENCODER_BTN) == LOW;
+if (isPressed && !wasPressed) {
+  wasPressed = true;
+  switch (DisplayUI::menuState) {
+    case DisplayUI::MAIN_MENU:
+      switch (DisplayUI::mainSelection) {
+        case 0:
+          DisplayUI::menuState = DisplayUI::SNIFF_MENU;
           DisplayUI::sniffSelection = 0;
           encoder.setPosition(0);
-          Serial.println("Exiting to Sniffing menu...");
+          Serial.println("Entering Sniffing menu...");
+          break;
+        case 3:
+          DisplayUI::menuState = DisplayUI::BUZZER_MENU;
+          DisplayUI::subSelection = 0;
+          encoder.setPosition(0);
+          Serial.println("Entering Buzzer Songs menu...");
+          break;
+        case 4:
+          DisplayUI::menuState = DisplayUI::FILE_BROWSER;
+          FileBrowser::initFileBrowser();
+          encoder.setPosition(0);
+          Serial.println("Entering File Browser...");
+          break;
+        default:
+          DisplayUI::menuState = DisplayUI::SUB_MENU;
+          DisplayUI::subSelection = 0;
+          encoder.setPosition(0);
+          Serial.println("Entering submenu...");
+          break;
+      }
+      break;
+      
+    case DisplayUI::BUZZER_MENU:
+    case DisplayUI::SUB_MENU:
+      if (DisplayUI::subSelection == 1) {
+        DisplayUI::menuState = DisplayUI::MAIN_MENU;
+        DisplayUI::mainSelection = 0;
+        encoder.setPosition(0);
+        Serial.println("Returning to Main Menu...");
+      } else {
+        if (DisplayUI::menuState == DisplayUI::BUZZER_MENU && DisplayUI::subSelection == 0) {
+          Serial.println("Playing Giorno’s Theme...");
+          SoundFX::playGiornosTheme();
         }
       }
-    }
-    
-    // Handle physical button presses (mimicking the 'e' key)
-    bool isPressed = digitalRead(ENCODER_BTN) == LOW;
-    if (isPressed && !wasPressed) {
-      wasPressed = true;
-      if (DisplayUI::menuState == MAIN_MENU) {
-         if (DisplayUI::mainSelection == 0) {
-           DisplayUI::menuState = SNIFF_MENU;
-           DisplayUI::sniffSelection = 0;
-           encoder.setPosition(0);
-           Serial.println("Entering Sniffing menu...");
-         }
-         else if (DisplayUI::mainSelection == 3) {
-           DisplayUI::menuState = BUZZER_MENU;
-           DisplayUI::subSelection = 0;
-           encoder.setPosition(0);
-           Serial.println("Entering Buzzer Songs menu...");
-         }
-         else {
-           DisplayUI::menuState = SUB_MENU;
-           DisplayUI::subSelection = 0;
-           encoder.setPosition(0);
-           Serial.println("Entering submenu...");
-         }
+      break;
+      
+    case DisplayUI::SNIFF_MENU:
+      switch (DisplayUI::sniffSelection) {
+        case 0:
+          DisplayUI::menuState = DisplayUI::SNIFF_PACKET;
+          Serial.println("Entering Packet Sniffing mode...");
+          break;
+        case 1:
+          DisplayUI::menuState = DisplayUI::SNIFF_AP;
+          Serial.println("Entering Access Points mode...");
+          break;
+        case 2:
+          DisplayUI::menuState = DisplayUI::MAIN_MENU;
+          DisplayUI::mainSelection = 0;
+          Serial.println("Returning to Main Menu...");
+          break;
+        default:
+          break;
       }
-      else if (DisplayUI::menuState == BUZZER_MENU || DisplayUI::menuState == SUB_MENU) {
-         if (DisplayUI::subSelection == 1) {
-             DisplayUI::menuState = MAIN_MENU;
-             encoder.setPosition(DisplayUI::mainSelection);
-             Serial.println("Returning to Main Menu...");
-         }
-         else {
-             if (DisplayUI::menuState == BUZZER_MENU && DisplayUI::subSelection == 0) {
-                 Serial.println("Playing Giorno’s Theme...");
-                 SoundFX::playGiornosTheme();
-             }
-         }
+      break;
+      
+    case DisplayUI::SNIFF_PACKET:
+    case DisplayUI::SNIFF_AP:
+      DisplayUI::menuState = DisplayUI::SNIFF_MENU;
+      DisplayUI::sniffSelection = 0;
+      encoder.setPosition(0);
+      Serial.println("Exiting to Sniffing menu...");
+      break;
+      
+    case DisplayUI::FILE_BROWSER:
+      switch (FileBrowser::browserState) {
+        case FileBrowser::FILE_LIST:
+          FileBrowser::openSelectedFile();
+          Serial.println("Opening file...");
+          break;
+        case FileBrowser::FILE_VIEW:
+          FileBrowser::closeFileView();
+          // Also exit file browser (optional) so MAIN_MENU is shown:
+          DisplayUI::menuState = DisplayUI::MAIN_MENU;
+          DisplayUI::mainSelection = 0;
+          Serial.println("Exiting File View to Main Menu...");
+          break;
+        default:
+          break;
       }
-      else if (DisplayUI::menuState == SNIFF_MENU) {
-         if (DisplayUI::sniffSelection == 0) {
-             DisplayUI::menuState = SNIFF_PACKET;
-             Serial.println("Entering Packet Sniffing mode...");
-         }
-         else if (DisplayUI::sniffSelection == 1) {
-             DisplayUI::menuState = SNIFF_AP;
-             Serial.println("Entering Access Points mode...");
-         }
-         else if (DisplayUI::sniffSelection == 2) {
-             DisplayUI::menuState = MAIN_MENU;
-             Serial.println("Returning to Main Menu...");
-         }
+      break;
+      
+    default:
+      break;
       }
-      else if (DisplayUI::menuState == SNIFF_PACKET || DisplayUI::menuState == SNIFF_AP) {
-         DisplayUI::menuState = SNIFF_MENU;
-         DisplayUI::sniffSelection = 0;
-         encoder.setPosition(0);
-         Serial.println("Exiting to Sniffing menu...");
-      }
-    }
-    else if (!isPressed) {
+    } else if (!isPressed) {
       wasPressed = false;
     }
-  }
-}
+
+  } // End of update()
+} // End of namespace InputHandler

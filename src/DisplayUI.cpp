@@ -1,8 +1,10 @@
 #include "DisplayUI.h"
+#include "FileBrowser.h"
 
 namespace {
   // Local definitions for menu texts with new features:
-  const char* mainMenu[] = { "Sniffing", "Info Mode", "Silent Mode", "Buzzer Songs" };
+  // Updated main menu now has 5 items including the file browser.
+  const char* mainMenu[] = { "Sniffing", "Info Mode", "Silent Mode", "Buzzer Songs", "File Browser" };
   const int mainMenuLength = sizeof(mainMenu) / sizeof(mainMenu[0]);
   
   const char* sniffMenu[] = { "Packet Sniffing", "Access Points", "Back" };
@@ -16,6 +18,7 @@ namespace {
 }
 
 namespace DisplayUI {
+  // Initialize our global UI state variables
   MenuState menuState = MAIN_MENU;
   int mainSelection = 0;
   int subSelection = 0;
@@ -30,7 +33,6 @@ namespace DisplayUI {
     display.clearDisplay();
     display.setCursor(0, 0);
     
-    // Render UI based on the current state:
     switch(menuState) {
       case MAIN_MENU:
         display.println("Main Menu:");
@@ -38,6 +40,22 @@ namespace DisplayUI {
           display.print((i == mainSelection) ? "> " : "  ");
           display.println(mainMenu[i]);
         }
+        break;
+        
+      case INFO_MODE:
+        display.println("Info Mode:");
+        // (You can add additional system stats here)
+        display.println("System Stats...");
+        display.setCursor(0, SCREEN_HEIGHT - 10);
+        display.print("> Back");
+        break;
+        
+      case SILENT_MODE:
+        display.println("Silent Mode:");
+        // (Customize the UI for silent mode if needed)
+        display.println("Buzzer/LEDs Off");
+        display.setCursor(0, SCREEN_HEIGHT - 10);
+        display.print("> Back");
         break;
         
       case BUZZER_MENU:
@@ -65,11 +83,10 @@ namespace DisplayUI {
         break;
         
       case SNIFF_PACKET:
-        // Display a fake real-time graph for packet sniffing
         display.println("Packet Sniffing:");
         for (int i = 0; i < 30; i++) {
           int x = random(0, SCREEN_WIDTH);
-          int y = random(0, SCREEN_HEIGHT - 10); // Reserve space for the "Back" option
+          int y = random(0, SCREEN_HEIGHT - 10);
           display.drawPixel(x, y, SSD1306_WHITE);
         }
         display.setCursor(0, SCREEN_HEIGHT - 10);
@@ -77,12 +94,21 @@ namespace DisplayUI {
         break;
         
       case SNIFF_AP:
-        // Placeholder for Access Points functionality
         display.println("Access Points:");
         display.println("Not yet implemented");
         display.setCursor(0, SCREEN_HEIGHT - 10);
         display.print("> Back");
         break;
+        
+      case FILE_BROWSER:
+      // Delegate update to the FileBrowser module based on its internal state.
+      if (FileBrowser::browserState == FileBrowser::FILE_LIST) {
+        FileBrowser::updateFileListDisplay(display);
+      } else if (FileBrowser::browserState == FileBrowser::FILE_VIEW) {
+        FileBrowser::updateFileViewerDisplay(display);
+      }
+      break;
+      
     }
     
     display.display();

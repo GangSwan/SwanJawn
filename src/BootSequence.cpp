@@ -1,27 +1,12 @@
 #include "BootSequence.h"
 #include "Storage.h"
+#include "SplashBitMap.h"
 
 void BootSequence::showSplash(Adafruit_SSD1306 &display) {
-  const char* logo[] = {
-    "   _____ _____ ",
-    "  / ____|_   _|",
-    " | (___   | |  ",
-    "  \\___ \\  | |  ",
-    "  ____) |_| |_ ",
-    " |_____/|_____|",
-    "     S J v0.1  "
-  };
-
   display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  for (int i = 0; i < 7; i++) {
-    display.setCursor(0, i * 8);
-    display.println(logo[i]);
-    display.display();
-    delay(150);
-  }
-  delay(1000);
+  display.drawBitmap(0, 0, swanBitmap, 128, 64, SSD1306_WHITE);
+  display.display();
+  delay(1000);  // Show splash for 1 second
 }
 
 void BootSequence::playStartupTone() {
