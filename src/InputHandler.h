@@ -8,6 +8,13 @@
 #include "SoundFX.h"
 
 namespace InputHandler {
+
+  extern int settingsSelection;
+  extern int modeSelection;
+  extern int channelSelection;
+  extern int speedSelection;
+
+
   void begin();
   void update();
 }

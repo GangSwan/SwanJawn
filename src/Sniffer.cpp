@@ -2,12 +2,17 @@
 #include "Storage.h"
 #include <esp_wifi.h>
 #include <WiFi.h>
+#include "DisplayUI.h"
 
 static bool sniffing = false;
 static int packetCount = 0;
 static String lastMAC = "";
 static int lastRSSI = 0;
 static int currentChannel = 1; // current Wi-Fi channel
+static const int rssiHistorySize = 128; // one pixel per sample
+static int rssiHistory[rssiHistorySize];
+static int rssiIndex = 0;
+
 
 static void snifferCallback(void* buf, wifi_promiscuous_pkt_type_t type) {
   if (type != WIFI_PKT_MGMT) return;
@@ -24,6 +29,11 @@ static void snifferCallback(void* buf, wifi_promiscuous_pkt_type_t type) {
   // Track last MAC/RSSI for display
   lastMAC = String(macStr);
   lastRSSI = rssi;
+
+  rssiHistory[rssiIndex] = pkt->rx_ctrl.rssi;
+  rssiIndex = (rssiIndex + 1) % rssiHistorySize;
+
+
   packetCount++;
 
   // Log to SD every 5 packets
@@ -59,7 +69,15 @@ void Sniffer::begin() {
   err = esp_wifi_set_promiscuous_rx_cb(snifferCallback);
   Serial.println("[SNIFFER] Callback set result: " + String(err));
 
-  err = esp_wifi_set_channel(currentChannel, WIFI_SECOND_CHAN_NONE);
+  if (DisplayUI::modeSelection == 1) { // Channel mode
+    currentChannel = DisplayUI::channelSelection + 1;
+    esp_wifi_set_channel(currentChannel, WIFI_SECOND_CHAN_NONE);
+    Serial.println("[SNIFFER] Locked to channel " + String(currentChannel));
+  } else {
+    // Scan mode - start on current channel, will auto hop in loop
+    esp_wifi_set_channel(currentChannel, WIFI_SECOND_CHAN_NONE);
+  }
+  
   Serial.println("[SNIFFER] Channel set to CH " + String(currentChannel) + ", result: " + String(err));
 
   char bootMsg[48];
@@ -75,13 +93,19 @@ void Sniffer::loop() {
 
   if (!sniffing) return;
 
-  if (millis() - lastHopTime > 5000) {
-    currentChannel++;
-    if (currentChannel > 11) currentChannel = 1;
-    esp_wifi_set_channel(currentChannel, WIFI_SECOND_CHAN_NONE);
-    Serial.println("[SNIFFER] Switched to channel " + String(currentChannel));
-    lastHopTime = millis();
+  if (DisplayUI::modeSelection == 0) { // Scan mode
+    const int scanSpeeds[] = { 1000, 2000, 3000, 5000, 8000, 10000 };
+    int interval = scanSpeeds[DisplayUI::speedSelection];
+  
+    if (millis() - lastHopTime > interval) {
+      currentChannel++;
+      if (currentChannel > 11) currentChannel = 1;
+      esp_wifi_set_channel(currentChannel, WIFI_SECOND_CHAN_NONE);
+      Serial.println("[SNIFFER] Switched to channel " + String(currentChannel));
+      lastHopTime = millis();
+    }
   }
+  
 }
 
 void Sniffer::stop() {
@@ -113,4 +137,9 @@ namespace Sniffer {
   int getLastRSSI() {
     return lastRSSI;
   }
+  
+  const int* getRSSIHistory() {
+    return rssiHistory;
+  }
+  
 }

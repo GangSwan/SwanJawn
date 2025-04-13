@@ -10,6 +10,7 @@ namespace Sniffer {
   int getPacketCount();
   String getLastMAC();
   int getLastRSSI();
+  const int* getRSSIHistory();
 
   void begin();
   void loop();
