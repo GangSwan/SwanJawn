@@ -9,7 +9,7 @@ namespace Storage {
     return SD.begin(SD_CS);
   }
 
-  bool logBoot(const String& entry) {
+  bool logBoot(const char* entry) {
     File file = SD.open("/bootlog.txt", FILE_WRITE);
     if (file) {
       file.println(entry);
@@ -19,7 +19,7 @@ namespace Storage {
     return false;
   }
 
-  bool logData(const String& entry) {
+  bool logData(const char* entry) {
     File file = SD.open("/log.txt", FILE_WRITE);
     if (file) {
       file.println(entry);

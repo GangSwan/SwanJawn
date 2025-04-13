@@ -19,6 +19,16 @@ namespace DisplayUI {
     FILE_BROWSER    // File browser for SD card (if needed)
   };
 
+  enum SniffPacketView {
+    INFO_VIEW,
+    GRAPH_VIEW
+  };
+  
+  extern SniffPacketView sniffPacketView;
+  extern int sniffPacketSelection;
+
+  
+
   // Global UI state variables (accessible across modules)
   extern MenuState menuState;
   extern int mainSelection;      // For MAIN_MENU (4 items)

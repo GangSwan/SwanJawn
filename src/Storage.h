@@ -5,8 +5,9 @@
 
 namespace Storage {
   bool begin();                        // Initialize SD card
-  bool logBoot(const String& entry);  // Write to bootlog.txt
-  bool logData(const String& entry);  // Write to log.txt
+  bool logBoot(const char* entry);  // Write to bootlog.txt
+  bool logData(const char* entry);  // Write to log.txt
+  
 }
 
 #endif // STORAGE_H

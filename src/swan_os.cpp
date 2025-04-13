@@ -39,6 +39,14 @@ void setup() {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
+
+  
+  esp_log_level_set("*", ESP_LOG_VERBOSE);
+
+  esp_reset_reason_t reason = esp_reset_reason();
+  Serial.println("Last Reset Reason: " + String(reason));
+
+
   
   // Boot sequence: show splash screen and play startup tone
   BootSequence::begin(display);
@@ -73,6 +81,9 @@ void loop() {
     lastState = DisplayUI::menuState;
   }
 
+  // Sniffer channel hopping logic (scanner mode)
+  Sniffer::loop();  // ← This will auto-hop channels if active
+
   // Simulate battery level and update RGB LED status (for demonstration)
   if (millis() - lastUpdate > 100) {
     lastUpdate = millis();
@@ -95,3 +106,4 @@ void loop() {
   // Update the OLED display with the current UI state
   DisplayUI::update(display);
 }
+
