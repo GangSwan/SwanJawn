@@ -6,6 +6,7 @@
 #include "DisplayUI.h"
 #include "InputHandler.h"
 #include "SoundFX.h"
+#include "Storage.h"
 
 // Create the global OLED display instance
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
@@ -15,8 +16,22 @@ static int battery = 0;
 static int direction = 1;
 static unsigned long lastUpdate = 0;
 
+
+
+
+
 void setup() {
   Serial.begin(115200);
+  
+  if (Storage::begin()) {
+    Serial.println("SD card initialized successfully.");
+    Storage::logBoot("SWAN-OS v0.1 Boot OK");
+  } else {
+    Serial.println("SD card initialization failed.");
+    // TODO: Display error message on OLED?
+  }
+  
+  // Continue with BootSequence, UI, etc...
   
   // Initialize OLED display
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);

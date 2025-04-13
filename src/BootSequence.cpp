@@ -36,13 +36,4 @@ void BootSequence::begin(Adafruit_SSD1306 &display) {
   playStartupTone();
 }
 
-void setup() {
-  Serial.begin(115200);
-  if (Storage::begin()) {
-    Serial.println("SD card initialized successfully.");
-    Storage::logBoot("SWAN-OS v0.1 Boot OK");
-  } else {
-    Serial.println("SD card initialization failed.");
-    // TODO: Display error message on OLED?
-  }
-}
+

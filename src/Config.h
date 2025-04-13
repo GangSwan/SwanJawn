@@ -8,7 +8,13 @@
 #define ENCODER_BTN 34
 #define RED_LED 16
 #define GREEN_LED 17
-#define BLUE_LED 18
+#define BLUE_LED 4 
+
+// SD Card SPI Pins
+#define SD_CS        5
+#define SD_MOSI      23
+#define SD_MISO      19
+#define SD_SCK       18
 
 // --- OLED Display Settings ---
 #define SCREEN_WIDTH 128
