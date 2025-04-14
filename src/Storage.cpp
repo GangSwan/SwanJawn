@@ -28,4 +28,13 @@ namespace Storage {
     }
     return false;
   }
+
+  bool logMidiEvent(const char* line) {
+    File f = SD.open("/midi_log.csv", FILE_WRITE);
+    if (!f) return false;
+    f.println(line);
+    f.close();
+    return true;
+  }
+  
 }

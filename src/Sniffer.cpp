@@ -3,6 +3,8 @@
 #include <esp_wifi.h>
 #include <WiFi.h>
 #include "DisplayUI.h"
+#include "SoundFX.h"
+
 
 static bool sniffing = false;
 static int packetCount = 0;
@@ -12,6 +14,9 @@ static int currentChannel = 1; // current Wi-Fi channel
 static const int rssiHistorySize = 128; // one pixel per sample
 static int rssiHistory[rssiHistorySize];
 static int rssiIndex = 0;
+static char queuedMidiLine[64] = ""; // only holds one line at a time
+static bool midiLineReady = false;
+
 
 
 static void snifferCallback(void* buf, wifi_promiscuous_pkt_type_t type) {
@@ -25,29 +30,41 @@ static void snifferCallback(void* buf, wifi_promiscuous_pkt_type_t type) {
            addr[10], addr[11], addr[12], addr[13], addr[14], addr[15]);
 
   int rssi = pkt->rx_ctrl.rssi;
-
-  // Track last MAC/RSSI for display
   lastMAC = String(macStr);
   lastRSSI = rssi;
 
-  rssiHistory[rssiIndex] = pkt->rx_ctrl.rssi;
+  rssiHistory[rssiIndex] = rssi;
   rssiIndex = (rssiIndex + 1) % rssiHistorySize;
-
-
   packetCount++;
 
-  // Log to SD every 5 packets
+  // SD log every 5 packets
   static int logSkipCounter = 0;
   if (++logSkipCounter % 5 == 0) {
     char logBuf[64];
     snprintf(logBuf, sizeof(logBuf), "MAC: %s RSSI: %d", macStr, rssi);
     Storage::logData(logBuf);
-    Serial.println("[SNIFFER] Wrote to log.txt: " + String(logBuf));
   }
 
-  // Optional: Monitor memory usage
+  // Debug (optional)
   Serial.println("Free heap: " + String(ESP.getFreeHeap()));
+
+  // Sound feedback
+  SoundFX::playSignalTone(rssi);
+
+  // Log MIDI pitch data
+  int clamped = constrain(rssi, -95, -30);
+  int note = map(clamped, -95, -30, 60, 84); // MIDI C4–C6
+  char midiLine[64];
+  snprintf(midiLine, sizeof(midiLine), "%lu,%d,30", millis(), note);
+  
+  if (!midiLineReady) {
+    strncpy(queuedMidiLine, midiLine, sizeof(queuedMidiLine));
+    midiLineReady = true;
+  }
+  
 }
+
+
 
 void Sniffer::begin() {
   if (sniffing) return;
@@ -90,6 +107,12 @@ void Sniffer::begin() {
 
 void Sniffer::loop() {
   static uint32_t lastHopTime = 0;
+
+  if (midiLineReady) {
+    Storage::logMidiEvent(queuedMidiLine);
+    midiLineReady = false;
+  }
+  
 
   if (!sniffing) return;
 
