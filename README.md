@@ -55,4 +55,24 @@
  *
  * This context is intended to help tools like GitHub Copilot and developers understand the
  * project structure and design philosophy, ensuring relevant code completions and suggestions.
+
+--------------------------------------------------------------------------
+### 🎹 Live MIDI Bridge (Python)
+
+To convert Swan Jawn's serial MIDI stream into real-time MIDI output:
+
+1. Install dependencies:
+   
+   bash:
+   pip install pyserial mido python-rtmidi
+
+2. Connect Swan Jawn to USB and find the COM port (e.g. COM3 or /dev/ttyUSB0)
+
+3. Run the bridge:
+   python midi_bridge/swanjawn_midi_bridge.py
+
+Make sure LoopMIDI (Windows) or IAC Bus (Mac) is active to route MIDI to your DAW.
+
+--------------------------------------------------------------------------
+
  */

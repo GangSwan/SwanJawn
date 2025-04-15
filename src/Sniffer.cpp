@@ -56,6 +56,9 @@ static void snifferCallback(void* buf, wifi_promiscuous_pkt_type_t type) {
   int note = map(clamped, -95, -30, 60, 84); // MIDI C4–C6
   char midiLine[64];
   snprintf(midiLine, sizeof(midiLine), "%lu,%d,30", millis(), note);
+ 
+  Serial.println(midiLine);  // for the Python bridge
+
   
   if (!midiLineReady) {
     strncpy(queuedMidiLine, midiLine, sizeof(queuedMidiLine));
