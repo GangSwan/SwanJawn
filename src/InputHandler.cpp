@@ -17,6 +17,7 @@ namespace InputHandler {
   }
   
   void update() {
+   
     // Process rotary encoder ticks
     for (int i = 0; i < 3; i++) {
       encoder.tick();
